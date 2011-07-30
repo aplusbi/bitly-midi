@@ -1,0 +1,15 @@
+OASISFormat: 0.2
+Name:        bitly
+Version:     0.1
+Synopsis:    bitly
+Authors:     Niki Yoshiuchi
+License:     Apache-2.0
+Plugins:     DevFiles (0.2), Meta (0.2)
+
+Executable bitly
+  Path:       src
+  BuildTools: ocamlbuild
+  CompiledObject: best
+  MainIs:     main.ml
+  BuildDepends: unix, yojson, ocaml_portmidi
+  
