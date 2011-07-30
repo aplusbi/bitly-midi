@@ -1,10 +1,12 @@
 # OASIS_START
-# DO NOT EDIT (digest: 45e121622460bd1036d327bb26b71c04)
+# DO NOT EDIT (digest: 5a83141bd314af0b9252db2bc22ef7e8)
 # Executable bitly
 <src/main.{native,byte}>: pkg_yojson
 <src/main.{native,byte}>: pkg_unix
+<src/main.{native,byte}>: pkg_ocaml_smf
 <src/main.{native,byte}>: pkg_ocaml_portmidi
 <src/*.ml{,i}>: pkg_yojson
 <src/*.ml{,i}>: pkg_unix
+<src/*.ml{,i}>: pkg_ocaml_smf
 <src/*.ml{,i}>: pkg_ocaml_portmidi
 # OASIS_STOP
