@@ -19,7 +19,7 @@ let play_note st n =
             let url = parse_json (List.assoc "u" d) in
             let site, page = parse_url url in
             let ua = parse_json (List.assoc "a" d) in
-            let inst = (Hashtbl.hash site) mod 100 in
+            let inst = (Hashtbl.hash site) mod 80 in
             let key = (Hashtbl.hash page) mod 128 in
             let time = 50 + ((Hashtbl.hash ua) mod 100) in
             Portmidi.write_short st Int32.zero (Portmidi.message 0xC0 inst 0);
