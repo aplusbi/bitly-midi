@@ -1,20 +1,33 @@
 open Yojson.Safe
 
+let parse_json j =
+    match j with
+    | `String s -> s
+    | `Int i -> string_of_int i
+    | `Float f -> string_of_float f
+    | _ -> ""
+
+let parse_url s =
+    try
+        let i = String.index_from s 7 '/' in
+        (String.sub s 0 i), (String.sub s i ((String.length s) - i))
+    with Not_found -> s, ""
+
 let play_note st n =
     match n with
     | `Assoc d ->
-            let url = List.assoc "u" d in
-            let ua = List.assoc "a" d in
-            let br = List.assoc "g" d in
-            let key = (Hashtbl.hash url) mod 128 in
+            let url = parse_json (List.assoc "u" d) in
+            let site, page = parse_url url in
+            let ua = parse_json (List.assoc "a" d) in
+            let inst = (Hashtbl.hash site) mod 100 in
+            let key = (Hashtbl.hash page) mod 128 in
             let time = 50 + ((Hashtbl.hash ua) mod 100) in
-            let inst = (Hashtbl.hash br) mod 128 in
             Portmidi.write_short st Int32.zero (Portmidi.message 0xC0 inst 0);
             Portmidi.write_short st Int32.zero (Portmidi.message 0x90 key 100);
             Portmidi.Time.sleep time;
             Portmidi.write_short st Int32.zero (Portmidi.message 0x80 key 0);
-            (inst, key, time)
-    | _ -> (-1, -1, -1)
+            (site, page, time)
+    | _ -> ("", "", -1)
 
 let write_note track ttime n =
     match n with
@@ -86,10 +99,10 @@ let curlplay st str =
     try
         let json = from_string str in
         match play_note st json with
-        | (-1, -1, -1) -> ()
+        | ("", "", -1) -> ()
         | (i, k, t) ->
-                let str = "Instrument: " ^ (string_of_int i) ^ " Key: " ^
-                (string_of_int k) ^ " Time: " ^ (string_of_int t) ^ "\n" in
+                let str = "Instrument: " ^ i ^ " Key: " ^
+                k ^ " Time: " ^ (string_of_int t) ^ "\n" in
                 ignore (Unix.write Unix.stdout str 0 (String.length str))
     with _ -> ()
     end;
