@@ -11,5 +11,5 @@ Executable bitly
   BuildTools: ocamlbuild
   CompiledObject: best
   MainIs:     main.ml
-  BuildDepends: unix, yojson, ocaml_portmidi, ocaml_smf
+  BuildDepends: unix, yojson, ocaml_portmidi, ocaml_smf, curl
   

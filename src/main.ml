@@ -1,27 +1,20 @@
 open Yojson.Safe
 
-let get_list file =
-    let json = from_file file in
-    match json with
-    | `Assoc d ->
-            begin
-                match List.assoc "data" d with
-                | `List l -> l
-                | _ -> raise Not_found
-            end
-    | _ -> raise Not_found
-
 let play_note st n =
     match n with
     | `Assoc d ->
             let url = List.assoc "u" d in
             let ua = List.assoc "a" d in
+            let br = List.assoc "g" d in
             let key = (Hashtbl.hash url) mod 128 in
-            let time = (Hashtbl.hash ua) mod 100 in
+            let time = 50 + ((Hashtbl.hash ua) mod 100) in
+            let inst = (Hashtbl.hash br) mod 128 in
+            Portmidi.write_short st Int32.zero (Portmidi.message 0xC0 inst 0);
             Portmidi.write_short st Int32.zero (Portmidi.message 0x90 key 100);
             Portmidi.Time.sleep time;
-            Portmidi.write_short st Int32.zero (Portmidi.message 0x80 key 0)
-    | _ -> ()
+            Portmidi.write_short st Int32.zero (Portmidi.message 0x80 key 0);
+            (inst, key, time)
+    | _ -> (-1, -1, -1)
 
 let write_note track ttime n =
     match n with
@@ -30,12 +23,9 @@ let write_note track ttime n =
             let ua = List.assoc "a" d in
             let key = (Hashtbl.hash url) mod 128 in
             let time = (Hashtbl.hash ua) mod 100 in
-            let ba = Bigarray.Array1.of_array Bigarray.int8_unsigned Bigarray.c_layout [|0x90; key; 100|] in
-            let event = Smf.event_new_from_pointer ba 3 in
+            let event = Smf.event_new_from_bytes 0x90 100 (-1) in
             Smf.track_add_event_seconds track event (ttime + time);
-            Bigarray.Array1.set ba 0 0x80;
-            Bigarray.Array1.set ba 2 0;
-            let event = Smf.event_new_from_pointer ba 3 in
+            let event = Smf.event_new_from_bytes 0x80 0 (-1) in
             Smf.track_add_event_seconds track event (ttime + (2 * time));
             ttime + (2 * time)
     | _ -> ttime
@@ -70,7 +60,7 @@ let play _ =
             let l = input_line raw_json in
             try
                 let json = from_string l in
-                play_note st json
+                ignore (play_note st json)
             with _ -> ()
         with End_of_file -> exit 0
     done
@@ -91,4 +81,34 @@ let write _ =
         with End_of_file -> ignore (Smf.save smf "bitly.mid"); exit 0
     done
 
-let _ = write ()
+let curlplay st str = 
+    begin
+    try
+        let json = from_string str in
+        match play_note st json with
+        | (-1, -1, -1) -> ()
+        | (i, k, t) ->
+                let str = "Instrument: " ^ (string_of_int i) ^ " Key: " ^
+                (string_of_int k) ^ " Time: " ^ (string_of_int t) ^ "\n" in
+                ignore (Unix.write Unix.stdout str 0 (String.length str))
+    with _ -> ()
+    end;
+    String.length str
+
+let curlstuff _ =
+    Portmidi.init ();
+    Portmidi.Time.start 1;
+    let d = get_device Output in
+    let st = Portmidi.open_output d 8 0 in
+    Portmidi.write_short st Int32.zero (Portmidi.message 0xC0 40 0);
+
+    Curl.global_init Curl.CURLINIT_GLOBALNOTHING;
+    let conn = Curl.init () in
+    Curl.set_url conn "http://developer.usa.gov/1usagov";
+    Curl.set_writefunction conn (curlplay st);
+    Curl.perform conn;
+    Curl.cleanup conn;
+    Curl.global_cleanup ();
+    ()
+
+let _ = curlstuff ()
